@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import { LiveKitRoom, RoomAudioRenderer, StartAudio } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { useConfig } from "@/hooks/useConfig";
@@ -67,13 +68,20 @@ function HomeContent() {
         {/* Pre-connection screen */}
         {status !== "connected" && status !== "connecting" && !manualConnected && !pttConnected && (
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-            <div className="bg-primary-500 px-6 py-5">
+            <div className="bg-primary-500 px-6 py-5 relative">
               <h1 className="text-xl font-semibold text-white">
                 {config.appTitle}
               </h1>
               <p className="text-primary-100 text-sm mt-1">
                 Connect to your voice agent
               </p>
+              <Link
+                href="/companion"
+                className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3 py-1.5 text-xs font-medium text-white hover:bg-white/25 transition-colors"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                Try Companion →
+              </Link>
             </div>
 
             {/* Mode switcher */}

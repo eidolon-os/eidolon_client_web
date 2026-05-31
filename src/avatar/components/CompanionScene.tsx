@@ -12,6 +12,8 @@ import { ConnectionOverlay } from "./ConnectionOverlay";
 import { BubbleLayer } from "./BubbleLayer";
 import { ControlDock } from "./ControlDock";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { HudOverlay } from "./HudOverlay";
+import styles from "../styles/companion.module.css";
 
 // AvatarStage 用 dynamic import 隔离 WebGL / three.js，避免 SSR 报错
 const AvatarStage = dynamic(
@@ -34,13 +36,15 @@ export function CompanionScene() {
 
       {/* 顶部状态条 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-6 py-5 text-white">
-        <div className="flex items-center gap-2 text-sm tracking-wide">
-          <span className={`h-2 w-2 rounded-full ${session.phase === "in-call" ? "bg-emerald-400" : "bg-white/30"}`} />
-          <span className="text-white/70">{session.config.appTitle}</span>
+        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.25em]">
+          <span className={`h-2 w-2 rounded-full ${session.phase === "in-call" ? "bg-cyan-300 " + styles.statusDot : "bg-white/30"}`} />
+          <span className="text-cyan-100/70">{session.config.appTitle}</span>
         </div>
-        <div className="text-xs text-white/40">
-          {session.phase === "in-call" && session.roomName && (
-            <span className="font-mono">{session.roomName}</span>
+        <div className="font-mono text-[11px] tracking-[0.25em] text-cyan-200/40">
+          {session.phase === "in-call" && session.roomName ? (
+            <span>SES://{session.roomName}</span>
+          ) : (
+            <span>SES://OFFLINE</span>
           )}
         </div>
       </div>
@@ -78,6 +82,8 @@ export function CompanionScene() {
           audio
           video={false}
           className="absolute inset-0"
+          // LiveKit 默认主题 .lk-room-container 会用 --lk-bg(#fff) 画白底，盖掉全息背景；置透明
+          style={{ background: "transparent" }}
         >
           <RoomAudioRenderer />
           <StartAudio label="Enable Audio" />
@@ -110,6 +116,7 @@ function InCallInner({ onDisconnect }: { onDisconnect: () => void }) {
       <div className="absolute inset-0">
         <AvatarStage controller={controller} />
       </div>
+      <HudOverlay state={controller.state} />
       <BubbleLayer bubbles={bubbles} />
       <ControlDock onDisconnect={onDisconnect} elapsedSec={elapsed} />
       <DiagnosticsPanel bubbles={bubbles} />

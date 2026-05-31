@@ -1,29 +1,12 @@
-import { AvatarMood, AvatarState } from "./types";
-
 /**
- * 默认 Ready Player Me 头像。
- * 本地托管在 public/avatar/default.glb（来自 TalkingHead 官方仓库 brunette.glb，
- * CC BY-NC 4.0；包含 ARKit + Oculus Visemes blendshapes）。
- * 可通过 NEXT_PUBLIC_AVATAR_URL 覆盖（指向自定义的 RPM URL 或其他 .glb）。
+ * 肖像图 → 粒子（默认渲染方式）。放一张清晰正面肖像到 public/avatar/portrait.jpg。
+ * 可用 NEXT_PUBLIC_PORTRAIT_URL 覆盖。清晰度取决于图片分辨率。
+ *
+ * 注：另有可选的 3D 路径（向 <AvatarStage modelUrl="xxx.glb" /> 传入 GLB，
+ * 会用 MeshSurfaceSampler 从网格表面采样）；默认不使用，未随仓库附带 glb。
  */
-export const DEFAULT_AVATAR_URL =
-  process.env.NEXT_PUBLIC_AVATAR_URL ?? "/avatar/default.glb";
-
-export const DEFAULT_AVATAR_BODY: "F" | "M" = "F";
-
-/** state → TalkingHead mood */
-export const STATE_TO_MOOD: Record<AvatarState, AvatarMood> = {
-  idle: "neutral",
-  listening: "neutral",
-  thinking: "neutral",
-  speaking: "happy",
-};
-
-/** 状态切换时触发的一次性手势（可选） */
-export const STATE_TO_GESTURE: Partial<Record<AvatarState, { name: string; durationSec: number }>> = {
-  listening: { name: "index", durationSec: 2 },
-  thinking: { name: "handup", durationSec: 3 },
-};
+export const PORTRAIT_URL =
+  process.env.NEXT_PUBLIC_PORTRAIT_URL ?? "/avatar/portrait.jpg";
 
 /** 气泡停留时间（毫秒），到点后淡出 */
 export const BUBBLE_TTL_MS = 8000;
@@ -31,12 +14,29 @@ export const BUBBLE_TTL_MS = 8000;
 /** 同屏最多保留的气泡数 */
 export const BUBBLE_MAX_VISIBLE = 3;
 
-/** 配色 token（极光夜空） */
+/** 配色 token（全息青蓝） */
 export const PALETTE = {
-  bgFrom: "#0b0a23",
-  bgVia: "#1e1b4b",
-  bgTo: "#312e81",
-  accent1: "#7c3aed", // 紫
-  accent2: "#22d3ee", // 青
-  accent3: "#f472b6", // 粉点缀
+  /** 背景深色（青黑） */
+  bgDeep: "#04121f",
+  bgFrom: "#02080f",
+  bgVia: "#06182a",
+  bgTo: "#0a2233",
+  /** 全息主色 */
+  holoCyan: "#22d3ee",
+  holoBlue: "#38bdf8",
+  holoGlow: "#7dd3fc",
+  holoWhite: "#e0fbff",
+  accent1: "#22d3ee", // 青（主）
+  accent2: "#38bdf8", // 蓝
+  accent3: "#7dd3fc", // 亮青点缀
+};
+
+/** 粒子 avatar 全息着色（three.js Color 十六进制，0x 形式见 ParticleHead） */
+export const HOLO_COLORS = {
+  /** 深处/基底青 */
+  colorA: "#0891b2",
+  /** 表层亮青白 */
+  colorB: "#a5f3fc",
+  /** 高能量/特征区强调（近白青） */
+  colorAccent: "#e0fbff",
 };

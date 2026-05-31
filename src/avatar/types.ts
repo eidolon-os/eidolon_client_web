@@ -14,8 +14,12 @@ export interface AvatarController {
 
 export interface AvatarStageProps {
   controller: AvatarController;
-  /** RPM GLB url；不传则用默认 */
+  /** 传入则用 GLB 头模表面采样（3D 路径）。不传则走图片→粒子路径。 */
   modelUrl?: string;
+  /** 肖像图 url；不传则用 PORTRAIT_URL。仅在未传 modelUrl 时生效。 */
+  imageUrl?: string;
+  /** 采样点数；不传则按设备自适应（桌面更密、移动更省） */
+  particleCount?: number;
   className?: string;
 }
 

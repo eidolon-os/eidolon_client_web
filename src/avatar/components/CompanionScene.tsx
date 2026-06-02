@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
 import { LiveKitRoom, RoomAudioRenderer, StartAudio } from "@livekit/components-react";
@@ -6,6 +6,7 @@ import "@livekit/components-styles";
 import { useCompanionSession } from "../hooks/useCompanionSession";
 import { useAvatarController } from "../hooks/useAvatarController";
 import { useBubbleStream } from "../hooks/useBubbleStream";
+import { useUsers } from "@/hooks/useUsers";
 import { AmbientBackground } from "./AmbientBackground";
 import { PreCallCard } from "./PreCallCard";
 import { ConnectionOverlay } from "./ConnectionOverlay";
@@ -14,6 +15,12 @@ import { ControlDock } from "./ControlDock";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { HudOverlay } from "./HudOverlay";
 import styles from "../styles/companion.module.css";
+
+// Phase 32.C (companion follow-up): share the same persisted-identity
+// key with the main /index page so picking a user in one place hydrates
+// the other. Both pages dispatch to the same hub /api/config user_id
+// validation, so the persistence semantics line up exactly.
+const SELECTED_USER_STORAGE_KEY = "eidolon.client_web.selected_user_id";
 
 // AvatarStage 用 dynamic import 隔离 WebGL / three.js，避免 SSR 报错
 const AvatarStage = dynamic(
@@ -29,6 +36,48 @@ const AvatarStage = dynamic(
  */
 export function CompanionScene() {
   const session = useCompanionSession();
+  const {
+    users,
+    loading: usersLoading,
+    error: usersError,
+    refresh: refreshUsers,
+  } = useUsers(session.config.adminApiUrl);
+
+  // localStorage hydration (mirrors index.tsx). Wrapped in useEffect so
+  // Next.js SSR doesn't trip on ``window``.
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(SELECTED_USER_STORAGE_KEY);
+    if (saved) setSelectedUserId(saved);
+  }, []);
+  useEffect(() => {
+    if (!selectedUserId) return;
+    if (usersLoading) return;
+    if (users.length === 0) return;
+    const still = users.some((u) => u.user_id === selectedUserId);
+    if (!still) {
+      setSelectedUserId(null);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(SELECTED_USER_STORAGE_KEY);
+      }
+    }
+  }, [users, usersLoading, selectedUserId]);
+
+  const handleSelectUser = useCallback((userId: string) => {
+    setSelectedUserId(userId);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, userId);
+    }
+  }, []);
+
+  const handleStart = useCallback(
+    (userId: string) => {
+      const picked = users.find((u) => u.user_id === userId);
+      session.start(userId, picked?.display_name);
+    },
+    [session, users],
+  );
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-950">
@@ -54,7 +103,13 @@ export function CompanionScene() {
           <PreCallCard
             key="pre"
             appTitle={session.config.appTitle}
-            onStart={session.start}
+            users={users}
+            usersLoading={usersLoading}
+            usersError={usersError}
+            selectedUserId={selectedUserId}
+            onSelect={handleSelectUser}
+            onRefresh={refreshUsers}
+            onStart={handleStart}
             error={session.error}
           />
         )}
@@ -67,7 +122,13 @@ export function CompanionScene() {
           <PreCallCard
             key="err"
             appTitle={session.config.appTitle}
-            onStart={session.start}
+            users={users}
+            usersLoading={usersLoading}
+            usersError={usersError}
+            selectedUserId={selectedUserId}
+            onSelect={handleSelectUser}
+            onRefresh={refreshUsers}
+            onStart={handleStart}
             error={session.error}
           />
         )}

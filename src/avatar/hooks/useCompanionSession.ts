@@ -20,17 +20,30 @@ export function useCompanionSession() {
     return "pre-call";
   })();
 
-  const start = useCallback((name: string) => {
-    const err = validate();
-    if (err) {
-      setValidationError(err);
-      return;
-    }
-    setValidationError(null);
-    const room = `companion-${Date.now()}`;
-    const participant = name.trim() || `user-${Date.now()}`;
-    connection.connect(room, participant);
-  }, [connection, validate]);
+  /**
+   * Phase 32.C: ``start`` takes a ``user_id`` (admin-registered identity)
+   * rather than a free-form display name. ``displayName`` is optional —
+   * defaults to user_id, used purely for room-UI text. Hub validates the
+   * user_id against admin (404 on unknowns), so this entry point also
+   * acquired the "no silent fallback" contract.
+   */
+  const start = useCallback(
+    (userId: string, displayName?: string) => {
+      const err = validate();
+      if (err) {
+        setValidationError(err);
+        return;
+      }
+      if (!userId.trim()) {
+        setValidationError("Pick an identity before starting the conversation.");
+        return;
+      }
+      setValidationError(null);
+      const room = `companion-${Date.now()}`;
+      connection.connect(room, userId.trim(), (displayName ?? userId).trim());
+    },
+    [connection, validate],
+  );
 
   const stop = useCallback(() => {
     connection.disconnect();

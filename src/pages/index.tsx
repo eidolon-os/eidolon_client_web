@@ -5,12 +5,16 @@ import { LiveKitRoom, RoomAudioRenderer, StartAudio } from "@livekit/components-
 import "@livekit/components-styles";
 import { useConfig } from "@/hooks/useConfig";
 import { useConnection } from "@/hooks/useConnection";
+import { useUsers } from "@/hooks/useUsers";
+import { UserPicker } from "@/components/UserPicker";
 import { ConversationRoom } from "@/components/ConversationRoom";
 import { ManualMode } from "@/components/ManualMode";
 import { PushToTalkMode } from "@/components/PushToTalkMode";
 import { motion } from "framer-motion";
 
 type ConnectionMode = "livekit" | "manual" | "ptt";
+
+const SELECTED_USER_STORAGE_KEY = "eidolon.client_web.selected_user_id";
 
 function HomeContent() {
   const { config, validate } = useConfig();
@@ -26,12 +30,56 @@ function HomeContent() {
     disconnect,
   } = useConnection(config.livekitUrl);
 
+  // Phase 32.C: list admin-registered users for the picker. The hook
+  // self-loads on mount; ``refresh()`` re-fetches (operator may have
+  // just created a new user in admin UI).
+  const {
+    users,
+    loading: usersLoading,
+    error: usersError,
+    refresh: refreshUsers,
+  } = useUsers(config.adminApiUrl);
+
   const [mode, setMode] = useState<ConnectionMode>("livekit");
   const [manualConnected, setManualConnected] = useState(false);
   const [pttConnected, setPttConnected] = useState(false);
   const [pendingRoom, setPendingRoom] = useState<string>("");
-  const [pendingName, setPendingName] = useState<string>("");
+  /** Selected user_id from the picker (Phase 32.A handshake). */
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Restore last-used identity from localStorage so returning visitors
+  // skip the picker if their previous selection is still valid. Stale
+  // entries (user deleted in admin) silently fall back to the picker
+  // showing nothing selected.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(SELECTED_USER_STORAGE_KEY);
+    if (saved) setSelectedUserId(saved);
+  }, []);
+
+  // Whenever users finish loading, confirm the restored selection
+  // still exists. If not, clear it — better than letting the user
+  // hit "Start Conversation" and get a 404 from hub.
+  useEffect(() => {
+    if (!selectedUserId) return;
+    if (usersLoading) return;
+    if (users.length === 0) return;
+    const still = users.some((u) => u.user_id === selectedUserId);
+    if (!still) {
+      setSelectedUserId(null);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(SELECTED_USER_STORAGE_KEY);
+      }
+    }
+  }, [users, usersLoading, selectedUserId]);
+
+  const handleSelectUser = useCallback((userId: string) => {
+    setSelectedUserId(userId);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, userId);
+    }
+  }, []);
 
   const handleConnect = useCallback(() => {
     const err = validate();
@@ -39,11 +87,16 @@ function HomeContent() {
       setValidationError(err);
       return;
     }
+    if (!selectedUserId) {
+      setValidationError("Pick an identity before starting the conversation.");
+      return;
+    }
     setValidationError(null);
     const room = pendingRoom.trim() || `room-${Date.now()}`;
-    const name = pendingName.trim() || `user-${Date.now()}`;
-    connect(room, name);
-  }, [validate, pendingRoom, pendingName, connect]);
+    const picked = users.find((u) => u.user_id === selectedUserId);
+    const displayName = picked?.display_name ?? selectedUserId;
+    connect(room, selectedUserId, displayName);
+  }, [validate, pendingRoom, selectedUserId, users, connect]);
 
   const handleDisconnect = useCallback(() => {
     disconnect();
@@ -52,7 +105,7 @@ function HomeContent() {
   useEffect(() => {
     if (status === "disconnected" || status === "error") {
       setPendingRoom("");
-      setPendingName("");
+      // intentionally keep selectedUserId — it's stored across sessions.
       setManualConnected(false);
       setPttConnected(false);
     }
@@ -149,20 +202,22 @@ function HomeContent() {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Your Name
+                      Identity
                     </label>
-                    <input
-                      type="text"
-                      value={pendingName}
-                      onChange={(e) => setPendingName(e.target.value)}
-                      placeholder="e.g., John"
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    <UserPicker
+                      users={users}
+                      loading={usersLoading}
+                      error={usersError}
+                      selectedUserId={selectedUserId}
+                      onSelect={handleSelectUser}
+                      onRefresh={refreshUsers}
                     />
                   </div>
 
                   <button
                     onClick={handleConnect}
-                    className="w-full py-2.5 rounded-lg bg-primary-500 text-white font-medium text-sm hover:bg-primary-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    disabled={!selectedUserId || usersLoading}
+                    className="w-full py-2.5 rounded-lg bg-primary-500 text-white font-medium text-sm hover:bg-primary-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary-500"
                   >
                     Start Conversation
                   </button>

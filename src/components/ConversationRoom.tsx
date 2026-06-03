@@ -28,6 +28,9 @@ export function ConversationRoom({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  // Set when the server drops us with a reason (e.g. idle timeout) so we can
+  // show *why* the call ended instead of a silent disconnect.
+  const [endedReason, setEndedReason] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
@@ -52,6 +55,19 @@ export function ConversationRoom({
             isSelf: false,
           },
         ]);
+      } catch {
+        // ignore malformed messages
+      }
+    } else if (msg.topic === "session_control") {
+      // Server-initiated session control (e.g. idle-timeout disconnect). The
+      // room is deleted right after this packet, so surface the reason now —
+      // otherwise the user only sees a silent disconnect.
+      try {
+        const text = new TextDecoder("utf-8").decode(msg.payload);
+        const data = JSON.parse(text);
+        if (data.type === "idle_timeout") {
+          setEndedReason("因长时间无操作，会话已自动结束。");
+        }
       } catch {
         // ignore malformed messages
       }
@@ -111,7 +127,44 @@ export function ConversationRoom({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full">
+      {/* Session-ended overlay (e.g. idle timeout) */}
+      <AnimatePresence>
+        {endedReason && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+          >
+            <div className="mx-4 max-w-xs rounded-2xl bg-white px-6 py-6 text-center shadow-xl">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+                <svg
+                  className="h-6 w-6 text-amber-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <p className="text-sm text-slate-700">{endedReason}</p>
+              <button
+                onClick={onDisconnect}
+                className="mt-5 w-full rounded-full bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600"
+              >
+                返回
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
         <div className="flex items-center gap-3">

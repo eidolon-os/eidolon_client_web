@@ -18,6 +18,12 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
   const assistant = useVoiceAssistant();
   const [secondsSinceConnect, setSecondsSinceConnect] = useState(0);
   const [hidden, setHidden] = useState(false);
+  const [everSpoke, setEverSpoke] = useState(false);
+
+  // 用实际音频/状态判断"说过话"——agent 一旦进入 speaking 即视为出过声（不依赖字幕）
+  useEffect(() => {
+    if (assistant.state === "speaking") setEverSpoke(true);
+  }, [assistant.state]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("nodebug")) {
@@ -66,6 +72,8 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
         <Row label="agent identity" value={agentParticipant.identity} />
       )}
       <Row label="assistant.state" value={assistant.state ?? "(none)"} color={assistant.state ? "ok" : "warn"} />
+      <Row label="ever spoke (audio)" value={everSpoke ? "✓" : "—"} color={everSpoke ? "ok" : "warn"} />
+      <Row label="agent transcripts" value={`${assistant.agentTranscriptions?.length ?? 0}`} />
       <Row label="bubbles" value={`${bubbles.length}`} />
       <Row
         label="last agent bubble"
@@ -82,9 +90,14 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
               <code className="ml-1 rounded bg-white/10 px-1">{`agent_name="eidolon"`}</code>
             </p>
           )}
-          {agentParticipant && !lastAgentBubble && (
+          {agentParticipant && !everSpoke && !lastAgentBubble && (
             <p className="text-amber-300">
-              ⚠ Agent 已加入但 10s 内没说话。检查 welcome_message 配置是否为空、TTS/LLM 是否可用。
+              ⚠ Agent 已加入但 10s 内未检测到语音(音频)与字幕。检查 welcome_message 配置是否为空、TTS/LLM 是否可用。
+            </p>
+          )}
+          {agentParticipant && everSpoke && !lastAgentBubble && (
+            <p className="text-white/50">
+              ℹ Agent 已出声(检测到音频)，但未收到字幕文本——agent 未推送 transcription 时属正常，不影响语音。
             </p>
           )}
         </div>

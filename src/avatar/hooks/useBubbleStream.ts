@@ -4,7 +4,7 @@ import {
   useTranscriptions,
   useVoiceAssistant,
 } from "@livekit/components-react";
-import { BUBBLE_MAX_VISIBLE, BUBBLE_TTL_MS } from "../constants";
+import { BUBBLE_LOG_MAX } from "../constants";
 import { BubbleMessage, BubbleSource } from "../types";
 
 interface UseBubbleStreamOptions {
@@ -15,20 +15,17 @@ interface UseBubbleStreamOptions {
 interface Entry {
   source: BubbleSource;
   text: string;
-  ts: number;
+  firstTs: number; // 首次出现时间，用于排序（流式更新不改变顺序）
 }
 
 /**
- * 字幕气泡来源 —— LiveKit 原生字幕 API（标准做法）。
+ * 字幕来源 —— LiveKit 原生字幕 API，输出**持久聊天记录**（不淡出，向上滚动）。
  *
- * 行为约定：
- *  - **用户(STT)**：合并为**单条**气泡（key=`user:live`），随识别结果不断刷新/最终修正，
- *    不会每个 chunk 新建一条；停说后 TTL 淡出。
- *  - **Agent 回复**：逐条气泡，流式追加（同一段/流 id 持续更新同一条），说完后 TTL 淡出。
- *  - 数据源两路合并：`useTranscriptions()`(现代文本流，按 identity 分 user/agent)
- *    + `useVoiceAssistant().agentTranscriptions`(旧段式，agent 专属)。
- *    agent 若两路都来，优先段式、避免重复。
- *  - 去重 / 防重生：seenRef 记录每个 id 已提交的文本，TTL 过期后不会因残留数据复活。
+ *  - 每条「话语」按其原生 id（agent 段 id / 文本流 id）聚成**一条**消息，
+ *    流式更新文本（不会每个 chunk 新建），说完后定格保留在记录里。
+ *  - 两路来源合并：useTranscriptions()（文本流，按 identity 分 user/agent）
+ *    + useVoiceAssistant().agentTranscriptions（段式，agent 专属，优先以避免重复）。
+ *  - 超过 BUBBLE_LOG_MAX 条后丢弃最早的；不再按时间淡出。
  */
 export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
   const transcriptions = useTranscriptions();
@@ -39,38 +36,33 @@ export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
 
   const [bubbles, setBubbles] = useState<BubbleMessage[]>(opts.mock ?? []);
   const storeRef = useRef<Map<string, Entry>>(new Map());
-  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const seenRef = useRef<Map<string, string>>(new Map()); // id -> 最近已提交文本
 
   const rebuild = useCallback(() => {
-    const items: BubbleMessage[] = [...storeRef.current.entries()]
-      .map(([id, e]) => ({ id, source: e.source, text: e.text, timestamp: e.ts }))
-      .sort((a, b) => a.timestamp - b.timestamp)
-      .slice(-BUBBLE_MAX_VISIBLE);
+    let items = [...storeRef.current.entries()]
+      .map(([id, e]) => ({ id, source: e.source, text: e.text, timestamp: e.firstTs }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+    if (items.length > BUBBLE_LOG_MAX) {
+      // 丢弃最早的，连带从 store 清除（限制内存）
+      const drop = items.slice(0, items.length - BUBBLE_LOG_MAX);
+      for (const d of drop) storeRef.current.delete(d.id);
+      items = items.slice(-BUBBLE_LOG_MAX);
+    }
     setBubbles(items);
   }, []);
 
-  const scheduleExpire = useCallback((id: string) => {
-    const ex = timersRef.current.get(id);
-    if (ex) clearTimeout(ex);
-    const t = setTimeout(() => {
-      storeRef.current.delete(id);
-      timersRef.current.delete(id);
-      rebuild();
-    }, BUBBLE_TTL_MS);
-    timersRef.current.set(id, t);
-  }, [rebuild]);
-
-  /** upsert：仅当该 id 的文本变化才更新（流式追加同一条；过期后同文本不再重生） */
+  /** upsert：同一 id 流式更新文本（保持原顺序）；文本无变化则跳过 */
   const upsert = useCallback((id: string, source: BubbleSource, rawText: string) => {
     const text = rawText.trim();
     if (!text) return false;
-    if (seenRef.current.get(id) === text) return false;
-    seenRef.current.set(id, text);
-    storeRef.current.set(id, { source, text, ts: Date.now() });
-    scheduleExpire(id);
+    const prev = storeRef.current.get(id);
+    if (prev) {
+      if (prev.text === text) return false;
+      prev.text = text; // 原地更新，firstTs 不变
+    } else {
+      storeRef.current.set(id, { source, text, firstTs: Date.now() });
+    }
     return true;
-  }, [scheduleExpire]);
+  }, []);
 
   useEffect(() => {
     if (opts.mock) return;
@@ -78,21 +70,18 @@ export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
     let changed = false;
     const hasAgentSegs = agentTranscriptions.length > 0;
 
-    // 文本流：用户合并为单条；agent 仅在无段式来源时取（避免重复）
-    let newestUser: { text: string; ts: number } | null = null;
+    // 文本流：user 按 identity 区分；agent 仅在无段式来源时取（避免重复）
     for (const seg of transcriptions) {
       const identity = seg.participantInfo?.identity;
       const isUser = identity
         ? identity === localIdentity || (!!agentIdentity && identity !== agentIdentity)
         : false;
       if (isUser) {
-        const ts = seg.streamInfo?.timestamp ?? 0;
-        if (!newestUser || ts >= newestUser.ts) newestUser = { text: seg.text, ts };
+        if (upsert(`ts:${seg.streamInfo.id}`, "user", seg.text)) changed = true;
       } else if (!hasAgentSegs) {
         if (upsert(`ts:${seg.streamInfo.id}`, "agent", seg.text)) changed = true;
       }
     }
-    if (newestUser && upsert("user:live", "user", newestUser.text)) changed = true;
 
     // 段式：agent 逐条流式（优先来源）
     if (hasAgentSegs) {
@@ -104,23 +93,14 @@ export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
     if (changed) rebuild();
   }, [transcriptions, agentTranscriptions, agentIdentity, localIdentity, upsert, rebuild, opts.mock]);
 
-  useEffect(() => {
-    const timers = timersRef.current;
-    return () => {
-      for (const t of timers.values()) clearTimeout(t);
-      timers.clear();
-    };
-  }, []);
-
-  /** 手动推一条气泡（mock / 外部使用） */
+  /** 手动推一条消息（mock / 外部使用） */
   const push = useCallback((source: BubbleSource, text: string, timestamp?: number) => {
     const cleaned = text.trim();
     if (!cleaned) return;
     const id = `manual:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    storeRef.current.set(id, { source, text: cleaned, ts: timestamp ?? Date.now() });
-    scheduleExpire(id);
+    storeRef.current.set(id, { source, text: cleaned, firstTs: timestamp ?? Date.now() });
     rebuild();
-  }, [scheduleExpire, rebuild]);
+  }, [rebuild]);
 
   return { bubbles, push };
 }

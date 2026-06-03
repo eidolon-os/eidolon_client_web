@@ -17,7 +17,7 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
   const remotes = useRemoteParticipants();
   const assistant = useVoiceAssistant();
   const [secondsSinceConnect, setSecondsSinceConnect] = useState(0);
-  const [hidden, setHidden] = useState(false);
+  const [open, setOpen] = useState(false); // 默认关闭，点角标打开
   const [everSpoke, setEverSpoke] = useState(false);
 
   // 用实际音频/状态判断"说过话"——agent 一旦进入 speaking 即视为出过声（不依赖字幕）
@@ -25,9 +25,10 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
     if (assistant.state === "speaking") setEverSpoke(true);
   }, [assistant.state]);
 
+  // ?debug 默认打开诊断面板
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("nodebug")) {
-      setHidden(true);
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug")) {
+      setOpen(true);
     }
   }, []);
 
@@ -40,7 +41,18 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
     return () => clearInterval(t);
   }, [connectionState]);
 
-  if (hidden) return null;
+  // 默认关闭：只显示一个可点击的角标，点了再打开
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="pointer-events-auto absolute right-4 top-16 z-30 rounded-lg border border-cyan-300/30 bg-slate-900/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/70 backdrop-blur transition-colors hover:border-cyan-300/60 hover:text-cyan-100"
+        aria-label="打开诊断面板"
+      >
+        ⚙ diag
+      </button>
+    );
+  }
 
   const agent = remotes.find((p) => (p as { isAgent?: boolean }).isAgent);
   const agentParticipant = agent ?? remotes.find((p) => p.identity?.startsWith("agent-") || p.identity?.includes("eidolon"));
@@ -51,9 +63,9 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider text-violet-300">DIAGNOSTICS</span>
         <button
-          onClick={() => setHidden(true)}
+          onClick={() => setOpen(false)}
           className="rounded text-white/40 hover:text-white/80"
-          aria-label="Hide"
+          aria-label="关闭"
         >
           ✕
         </button>

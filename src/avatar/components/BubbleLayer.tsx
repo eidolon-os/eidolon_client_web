@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import { BubbleMessage } from "../types";
 import { SpeechBubble } from "./SpeechBubble";
@@ -8,31 +8,39 @@ interface BubbleLayerProps {
 }
 
 /**
- * 气泡层：在角色上方区域以纵向堆叠展示气泡。
- * agent 气泡贴右上、user 气泡贴左下，便于和 3D 角色构图。
+ * 字幕记录层：左侧一列**持久聊天记录**，最新在底部，旧的向上滚动（可手动上滑查看历史）。
+ * agent 左对齐、user 右对齐。新消息到达时自动滚到底部（除非用户正在上滑查看历史）。
  */
 export function BubbleLayer({ bubbles }: BubbleLayerProps) {
-  return (
-    <div className="pointer-events-none absolute inset-0 flex">
-      {/* Agent 区：右上 */}
-      <div className="absolute right-[6%] top-[12%] flex max-w-[28rem] flex-col items-end gap-3">
-        <AnimatePresence initial={false}>
-          {bubbles
-            .filter((b) => b.source === "agent")
-            .map((b) => (
-              <SpeechBubble key={b.id} message={b} position="left" />
-            ))}
-        </AnimatePresence>
-      </div>
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const stickToBottomRef = useRef(true);
 
-      {/* User 区：左下 */}
-      <div className="absolute bottom-[24%] left-[6%] flex max-w-[24rem] flex-col items-start gap-3">
+  // 记录用户是否停留在底部；只有在底部时才自动跟随新消息
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = dist < 48;
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && stickToBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [bubbles]);
+
+  return (
+    <div className="pointer-events-none absolute bottom-28 left-6 top-24 z-10 flex w-[min(26rem,42vw)] flex-col justify-end">
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="pointer-events-auto flex max-h-full flex-col gap-3 overflow-y-auto pr-1 [scrollbar-width:thin]"
+      >
         <AnimatePresence initial={false}>
-          {bubbles
-            .filter((b) => b.source === "user")
-            .map((b) => (
-              <SpeechBubble key={b.id} message={b} position="right" />
-            ))}
+          {bubbles.map((b) => (
+            <SpeechBubble key={b.id} message={b} position={b.source === "agent" ? "left" : "right"} />
+          ))}
         </AnimatePresence>
       </div>
     </div>

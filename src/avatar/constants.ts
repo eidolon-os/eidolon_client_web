@@ -8,11 +8,8 @@
 export const PORTRAIT_URL =
   process.env.NEXT_PUBLIC_PORTRAIT_URL ?? "/avatar/portrait.jpg";
 
-/** 气泡停留时间（毫秒），到点后淡出 */
-export const BUBBLE_TTL_MS = 8000;
-
-/** 同屏最多保留的气泡数 */
-export const BUBBLE_MAX_VISIBLE = 3;
+/** 聊天记录最多保留的消息条数（超出丢弃最早的；不再按时间淡出） */
+export const BUBBLE_LOG_MAX = 60;
 
 /** 配色 token（全息青蓝） */
 export const PALETTE = {

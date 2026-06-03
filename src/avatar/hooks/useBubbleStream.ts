@@ -19,15 +19,16 @@ interface Entry {
 }
 
 /**
- * 字幕气泡来源 —— 使用 LiveKit **原生字幕 API**（标准做法）：
+ * 字幕气泡来源 —— LiveKit 原生字幕 API（标准做法）。
  *
- *  1. 主：`useTranscriptions()` —— 现代文本流字幕，覆盖 agent + user，
- *     按 `participantInfo.identity` 区分来源，流式更新（同一 streamInfo.id 不断追加文本）。
- *  2. 回退：`useVoiceAssistant().agentTranscriptions` —— 旧段式字幕（兼容老版 agent），
- *     仅当上面为空时启用，避免重复。
- *
- * 二者都按"流/段 id"做 upsert（流式追加同一条气泡，而非每条新建），
- * 并在最后一次更新后 BUBBLE_TTL_MS 自动淡出。
+ * 行为约定：
+ *  - **用户(STT)**：合并为**单条**气泡（key=`user:live`），随识别结果不断刷新/最终修正，
+ *    不会每个 chunk 新建一条；停说后 TTL 淡出。
+ *  - **Agent 回复**：逐条气泡，流式追加（同一段/流 id 持续更新同一条），说完后 TTL 淡出。
+ *  - 数据源两路合并：`useTranscriptions()`(现代文本流，按 identity 分 user/agent)
+ *    + `useVoiceAssistant().agentTranscriptions`(旧段式，agent 专属)。
+ *    agent 若两路都来，优先段式、避免重复。
+ *  - 去重 / 防重生：seenRef 记录每个 id 已提交的文本，TTL 过期后不会因残留数据复活。
  */
 export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
   const transcriptions = useTranscriptions();
@@ -39,6 +40,7 @@ export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
   const [bubbles, setBubbles] = useState<BubbleMessage[]>(opts.mock ?? []);
   const storeRef = useRef<Map<string, Entry>>(new Map());
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const seenRef = useRef<Map<string, string>>(new Map()); // id -> 最近已提交文本
 
   const rebuild = useCallback(() => {
     const items: BubbleMessage[] = [...storeRef.current.entries()]
@@ -59,34 +61,41 @@ export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
     timersRef.current.set(id, t);
   }, [rebuild]);
 
-  /** upsert：文本变化才刷新时间戳与 TTL（保证流式追加的同一条气泡持续显示、停说后淡出） */
+  /** upsert：仅当该 id 的文本变化才更新（流式追加同一条；过期后同文本不再重生） */
   const upsert = useCallback((id: string, source: BubbleSource, rawText: string) => {
     const text = rawText.trim();
     if (!text) return false;
-    const prev = storeRef.current.get(id);
-    if (prev && prev.text === text) return false;
+    if (seenRef.current.get(id) === text) return false;
+    seenRef.current.set(id, text);
     storeRef.current.set(id, { source, text, ts: Date.now() });
     scheduleExpire(id);
     return true;
   }, [scheduleExpire]);
 
   useEffect(() => {
-    if (opts.mock) return; // 调试 mock 模式不接真实流
+    if (opts.mock) return;
 
     let changed = false;
+    const hasAgentSegs = agentTranscriptions.length > 0;
 
-    if (transcriptions.length > 0) {
-      // 主路径：现代文本流字幕
-      for (const seg of transcriptions) {
-        const identity = seg.participantInfo?.identity;
-        const source: BubbleSource =
-          identity && identity === localIdentity ? "user"
-          : identity && agentIdentity && identity !== agentIdentity ? "user"
-          : "agent";
-        if (upsert(`ts:${seg.streamInfo.id}`, source, seg.text)) changed = true;
+    // 文本流：用户合并为单条；agent 仅在无段式来源时取（避免重复）
+    let newestUser: { text: string; ts: number } | null = null;
+    for (const seg of transcriptions) {
+      const identity = seg.participantInfo?.identity;
+      const isUser = identity
+        ? identity === localIdentity || (!!agentIdentity && identity !== agentIdentity)
+        : false;
+      if (isUser) {
+        const ts = seg.streamInfo?.timestamp ?? 0;
+        if (!newestUser || ts >= newestUser.ts) newestUser = { text: seg.text, ts };
+      } else if (!hasAgentSegs) {
+        if (upsert(`ts:${seg.streamInfo.id}`, "agent", seg.text)) changed = true;
       }
-    } else if (agentTranscriptions.length > 0) {
-      // 回退：旧段式字幕（agent 专属）
+    }
+    if (newestUser && upsert("user:live", "user", newestUser.text)) changed = true;
+
+    // 段式：agent 逐条流式（优先来源）
+    if (hasAgentSegs) {
       for (const seg of agentTranscriptions) {
         if (upsert(`seg:${seg.id}`, "agent", seg.text)) changed = true;
       }
@@ -103,7 +112,7 @@ export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
     };
   }, []);
 
-  /** 手动推入一条气泡（mock / 外部使用，写入同一 store） */
+  /** 手动推一条气泡（mock / 外部使用） */
   const push = useCallback((source: BubbleSource, text: string, timestamp?: number) => {
     const cleaned = text.trim();
     if (!cleaned) return;

@@ -46,7 +46,7 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="pointer-events-auto absolute right-4 top-16 z-30 rounded-lg border border-cyan-300/30 bg-slate-900/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/70 backdrop-blur transition-colors hover:border-cyan-300/60 hover:text-cyan-100"
+        className="pointer-events-auto absolute right-4 top-36 z-30 rounded-lg border border-cyan-300/30 bg-slate-900/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/70 backdrop-blur transition-colors hover:border-cyan-300/60 hover:text-cyan-100"
         aria-label="打开诊断面板"
       >
         ⚙ diag
@@ -59,7 +59,7 @@ export function DiagnosticsPanel({ bubbles }: { bubbles: BubbleMessage[] }) {
   const lastAgentBubble = [...bubbles].reverse().find((b) => b.source === "agent");
 
   return (
-    <div className="pointer-events-auto absolute right-4 top-16 z-30 w-80 rounded-2xl border border-white/15 bg-slate-900/80 p-4 font-mono text-[11px] text-white/85 shadow-2xl backdrop-blur-md">
+    <div className="pointer-events-auto absolute right-4 top-36 z-30 w-80 rounded-2xl border border-white/15 bg-slate-900/80 p-4 font-mono text-[11px] text-white/85 shadow-2xl backdrop-blur-md">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider text-violet-300">DIAGNOSTICS</span>
         <button

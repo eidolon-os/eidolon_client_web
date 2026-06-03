@@ -71,15 +71,18 @@ export function useBubbleStream(opts: UseBubbleStreamOptions = {}) {
     const hasAgentSegs = agentTranscriptions.length > 0;
 
     // 文本流：user 按 identity 区分；agent 仅在无段式来源时取（避免重复）
+    // 关键：按 lk.segment_id 归并——同一句话的 partial 与 final 共享 segment_id，
+    // 落到同一条气泡（文本更新到 final），避免出现"中间气泡 + final 气泡"。
     for (const seg of transcriptions) {
       const identity = seg.participantInfo?.identity;
+      const segId = seg.streamInfo.attributes?.["lk.segment_id"] ?? seg.streamInfo.id;
       const isUser = identity
         ? identity === localIdentity || (!!agentIdentity && identity !== agentIdentity)
         : false;
       if (isUser) {
-        if (upsert(`ts:${seg.streamInfo.id}`, "user", seg.text)) changed = true;
+        if (upsert(`ts:${segId}`, "user", seg.text)) changed = true;
       } else if (!hasAgentSegs) {
-        if (upsert(`ts:${seg.streamInfo.id}`, "agent", seg.text)) changed = true;
+        if (upsert(`ts:${segId}`, "agent", seg.text)) changed = true;
       }
     }
 

@@ -9,6 +9,7 @@ import {
 } from "@livekit/components-react";
 import { ChatMessage, Message } from "./ChatMessage";
 import { AudioVisualizer } from "./AudioVisualizer";
+import { useClientAudioStatePublisher } from "@/hooks/useClientAudioStatePublisher";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ConversationRoomProps {
@@ -35,6 +36,10 @@ export function ConversationRoom({
   const startTimeRef = useRef<number | null>(null);
 
   const assistant = useVoiceAssistant();
+  useClientAudioStatePublisher({
+    inputMode: "auto",
+    playbackState: assistant.state === "speaking" ? "agent_speaking" : "idle",
+  });
 
   const agentTrack = useTracks([Track.Source.Microphone], {
     onlySubscribed: false,

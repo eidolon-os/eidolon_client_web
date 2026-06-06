@@ -358,7 +358,11 @@ function HomeContent() {
             serverUrl={serverUrl}
             token={token}
             connect={true}
-            audio={true}
+            audio={{
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            }}
             video={false}
             className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden h-[600px]"
           >

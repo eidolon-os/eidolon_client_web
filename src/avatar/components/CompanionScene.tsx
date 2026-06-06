@@ -6,6 +6,7 @@ import "@livekit/components-styles";
 import { useCompanionSession } from "../hooks/useCompanionSession";
 import { useAvatarController } from "../hooks/useAvatarController";
 import { useBubbleStream } from "../hooks/useBubbleStream";
+import { useClientAudioStatePublisher } from "@/hooks/useClientAudioStatePublisher";
 import { useUsers } from "@/hooks/useUsers";
 import { AmbientBackground } from "./AmbientBackground";
 import { PreCallCard } from "./PreCallCard";
@@ -140,7 +141,11 @@ export function CompanionScene() {
           serverUrl={session.serverUrl}
           token={session.token}
           connect
-          audio
+          audio={{
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          }}
           video={false}
           className="absolute inset-0"
           // LiveKit 默认主题 .lk-room-container 会用 --lk-bg(#fff) 画白底，盖掉全息背景；置透明
@@ -163,6 +168,11 @@ function InCallInner({ onDisconnect }: { onDisconnect: () => void }) {
   const { bubbles } = useBubbleStream();
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef<number>(Date.now());
+
+  useClientAudioStatePublisher({
+    inputMode: "auto",
+    playbackState: controller.state === "speaking" ? "agent_speaking" : "idle",
+  });
 
   useEffect(() => {
     startRef.current = Date.now();

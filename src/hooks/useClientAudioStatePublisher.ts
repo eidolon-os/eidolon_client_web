@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
-import { useRoomContext } from "@livekit/components-react";
+import {
+  useConnectionState,
+  useRoomContext,
+} from "@livekit/components-react";
+import { ConnectionState } from "livekit-client";
 
 const TOPIC = "client.audio_state";
 const DEBUG_REPORT_INTERVAL_MS = 10_000;
@@ -26,13 +30,20 @@ export function useClientAudioStatePublisher({
   intervalMs = 500,
 }: Options) {
   const room = useRoomContext();
+  const connectionState = useConnectionState();
   const seqRef = useRef(0);
   const lastStateKeyRef = useRef<string>("");
   const lastDebugReportAtRef = useRef(0);
   const lastFailureReportAtRef = useRef(0);
 
   useEffect(() => {
-    if (!enabled || !room?.localParticipant) return;
+    if (
+      !enabled ||
+      !room?.localParticipant ||
+      connectionState !== ConnectionState.Connected
+    ) {
+      return;
+    }
 
     const reportDebug = (
       event: "published" | "failed",
@@ -77,6 +88,7 @@ export function useClientAudioStatePublisher({
     };
 
     const publish = () => {
+      if (connectionState !== ConnectionState.Connected) return;
       const stateKey = [
         inputMode,
         ptt,
@@ -121,6 +133,7 @@ export function useClientAudioStatePublisher({
     return () => window.clearInterval(id);
   }, [
     enabled,
+    connectionState,
     inputMode,
     intervalMs,
     manualInterrupt,

@@ -5,7 +5,7 @@ import {
 } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 
-const TOPIC = "client.audio_state";
+const TOPIC = "eidolon.audio_state";
 const DEBUG_REPORT_INTERVAL_MS = 10_000;
 const FAILURE_REPORT_INTERVAL_MS = 2_000;
 

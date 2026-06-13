@@ -63,7 +63,7 @@ export function ConversationRoom({
       } catch {
         // ignore malformed messages
       }
-    } else if (msg.topic === "session_control") {
+    } else if (msg.topic === "eidolon.session_control") {
       // Server-initiated session control (e.g. idle-timeout disconnect). The
       // room is deleted right after this packet, so surface the reason now —
       // otherwise the user only sees a silent disconnect.

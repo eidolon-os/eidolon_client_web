@@ -4,13 +4,16 @@ import {
   useRoomContext,
 } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
+import {
+  CLIENT_AUDIO_STATE_TOPIC,
+  CLIENT_AUDIO_STATE_TYPE,
+  WIRE_SCHEMA_VERSION,
+  type InputMode,
+  type PlaybackState,
+} from "@/lib/contracts";
 
-const TOPIC = "eidolon.audio_state";
 const DEBUG_REPORT_INTERVAL_MS = 10_000;
 const FAILURE_REPORT_INTERVAL_MS = 2_000;
-
-type InputMode = "auto" | "ptt" | "manual";
-type PlaybackState = "idle" | "agent_speaking";
 
 interface Options {
   enabled?: boolean;
@@ -104,7 +107,8 @@ export function useClientAudioStatePublisher({
             : "heartbeat";
       lastStateKeyRef.current = stateKey;
       const payload = {
-        type: TOPIC,
+        schema_v: WIRE_SCHEMA_VERSION,
+        type: CLIENT_AUDIO_STATE_TYPE,
         seq: ++seqRef.current,
         input_mode: inputMode,
         ptt,
@@ -118,7 +122,7 @@ export function useClientAudioStatePublisher({
       void room.localParticipant
         .publishData(new TextEncoder().encode(JSON.stringify(payload)), {
           reliable,
-          topic: TOPIC,
+          topic: CLIENT_AUDIO_STATE_TOPIC,
         })
         .then(() => {
           reportDebug("published", payload, reason);

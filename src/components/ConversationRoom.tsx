@@ -10,6 +10,12 @@ import {
 import { ChatMessage, Message } from "./ChatMessage";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { useClientAudioStatePublisher } from "@/hooks/useClientAudioStatePublisher";
+import {
+  PLAYBACK_STATE_AGENT_SPEAKING,
+  PLAYBACK_STATE_IDLE,
+  SESSION_CONTROL_TOPIC,
+  SESSION_END_IDLE_NORMAL,
+} from "@/lib/contracts";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ConversationRoomProps {
@@ -38,7 +44,10 @@ export function ConversationRoom({
   const assistant = useVoiceAssistant();
   useClientAudioStatePublisher({
     inputMode: "auto",
-    playbackState: assistant.state === "speaking" ? "agent_speaking" : "idle",
+    playbackState:
+      assistant.state === "speaking"
+        ? PLAYBACK_STATE_AGENT_SPEAKING
+        : PLAYBACK_STATE_IDLE,
   });
 
   const agentTrack = useTracks([Track.Source.Microphone], {
@@ -63,14 +72,17 @@ export function ConversationRoom({
       } catch {
         // ignore malformed messages
       }
-    } else if (msg.topic === "eidolon.session_control") {
+    } else if (msg.topic === SESSION_CONTROL_TOPIC) {
       // Server-initiated session control (e.g. idle-timeout disconnect). The
       // room is deleted right after this packet, so surface the reason now —
       // otherwise the user only sees a silent disconnect.
       try {
         const text = new TextDecoder("utf-8").decode(msg.payload);
         const data = JSON.parse(text);
-        if (data.type === "idle_timeout") {
+        // Server sends {type: "session_end", reason: "idle_normal_end"}; the old
+        // check looked at a `type` value that is never sent, so this notice never
+        // fired. Match the contract reason instead.
+        if (data.reason === SESSION_END_IDLE_NORMAL) {
           setEndedReason("因长时间无操作，会话已自动结束。");
         }
       } catch {

@@ -7,6 +7,10 @@ import { useCompanionSession } from "../hooks/useCompanionSession";
 import { useAvatarController } from "../hooks/useAvatarController";
 import { useBubbleStream } from "../hooks/useBubbleStream";
 import { useClientAudioStatePublisher } from "@/hooks/useClientAudioStatePublisher";
+import {
+  PLAYBACK_STATE_AGENT_SPEAKING,
+  PLAYBACK_STATE_IDLE,
+} from "@/lib/contracts";
 import { useUsers } from "@/hooks/useUsers";
 import { AmbientBackground } from "./AmbientBackground";
 import { PreCallCard } from "./PreCallCard";
@@ -171,7 +175,10 @@ function InCallInner({ onDisconnect }: { onDisconnect: () => void }) {
 
   useClientAudioStatePublisher({
     inputMode: "auto",
-    playbackState: controller.state === "speaking" ? "agent_speaking" : "idle",
+    playbackState:
+      controller.state === "speaking"
+        ? PLAYBACK_STATE_AGENT_SPEAKING
+        : PLAYBACK_STATE_IDLE,
   });
 
   useEffect(() => {

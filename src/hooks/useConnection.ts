@@ -11,11 +11,7 @@ export type ConnectionStatus =
 export interface ConnectionState {
   status: ConnectionStatus;
   roomName: string | null;
-  /** The user_id chosen at connect time (Phase 32.A). Becomes LK
-   * participant.identity server-side, so channel can resolve the same
-   * user via admin /api/resolve/user. Mirrored in display fields below
-   * so existing room UI doesn't break. */
-  userId: string | null;
+  ownerId: string | null;
   displayName: string | null;
   identity: string | null;
   token: string | null;
@@ -26,7 +22,7 @@ export function useConnection(livekitUrl: string) {
   const [state, setState] = useState<ConnectionState>({
     status: "idle",
     roomName: null,
-    userId: null,
+    ownerId: null,
     displayName: null,
     identity: null,
     token: null,
@@ -37,23 +33,16 @@ export function useConnection(livekitUrl: string) {
 
   /**
    * Phase 32.A handshake:
-   *   hub /api/config?client_type=web&user_id=<x>&room_name=<r>
-   * Hub validates user_id against admin (404 if unknown), signs the
-   * LiveKit token with identity=user_id, returns it. Channel reads
-   * participant.identity to look up tenant/agent in admin → signs its
-   * own device JWT for the gRPC call to agent.
-   *
-   * ``displayName`` is purely cosmetic (room UI shows it as "Talking
-   * with X"); identity comes from ``userId``.
+   *   hub /api/config?client_type=web&owner_id=<x>&room_name=<r>
+   * Hub validates owner_id against admin and signs the LiveKit token
+   * with identity=owner_id. Runtime identity is resolved again by
+   * channel before it calls eidolon_agent.
    */
   const connect = useCallback(
     async (
       roomName: string,
-      userId: string,
-      // Optional cosmetic name for the room UI. Falls back to userId
-      // so legacy callers (Companion page passing a single name field)
-      // keep working unchanged.
-      displayName: string = userId,
+      ownerId: string,
+      displayName: string = ownerId,
     ) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -64,7 +53,7 @@ export function useConnection(livekitUrl: string) {
       setState({
         status: "connecting",
         roomName,
-        userId,
+        ownerId,
         displayName,
         identity: null,
         token: null,
@@ -75,7 +64,7 @@ export function useConnection(livekitUrl: string) {
         const params = new URLSearchParams({
           client_type: "web",
           room_name: roomName,
-          user_id: userId,
+          owner_id: ownerId,
           agent_mode: "streaming",
         });
         const tokenUrl =
@@ -107,9 +96,9 @@ export function useConnection(livekitUrl: string) {
         setState({
           status: "connected",
           roomName,
-          userId,
+          ownerId,
           displayName,
-          identity: data.identity ?? userId,
+          identity: data.identity ?? ownerId,
           token: data.accessToken,
           error: null,
         });
@@ -134,7 +123,7 @@ export function useConnection(livekitUrl: string) {
     setState({
       status: "disconnected",
       roomName: null,
-      userId: null,
+      ownerId: null,
       displayName: null,
       identity: null,
       token: null,

@@ -21,26 +21,23 @@ export function useCompanionSession() {
   })();
 
   /**
-   * Phase 32.C: ``start`` takes a ``user_id`` (admin-registered identity)
-   * rather than a free-form display name. ``displayName`` is optional —
-   * defaults to user_id, used purely for room-UI text. Hub validates the
-   * user_id against admin (404 on unknowns), so this entry point also
-   * acquired the "no silent fallback" contract.
+   * ``start`` takes an owner_id instead of a free-form display name.
+   * ``displayName`` is optional and used only for room UI text.
    */
   const start = useCallback(
-    (userId: string, displayName?: string) => {
+    (ownerId: string, displayName?: string) => {
       const err = validate();
       if (err) {
         setValidationError(err);
         return;
       }
-      if (!userId.trim()) {
+      if (!ownerId.trim()) {
         setValidationError("Pick an identity before starting the conversation.");
         return;
       }
       setValidationError(null);
       const room = `companion-${Date.now()}`;
-      connection.connect(room, userId.trim(), (displayName ?? userId).trim());
+      connection.connect(room, ownerId.trim(), (displayName ?? ownerId).trim());
     },
     [connection, validate],
   );

@@ -1,49 +1,46 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { UserPicker } from "@/components/UserPicker";
-import type { UserRow } from "@/hooks/useUsers";
+import { OwnerPicker } from "@/components/OwnerPicker";
+import type { OwnerRow } from "@/hooks/useOwners";
 import styles from "../styles/companion.module.css";
 
 /**
  * Phase 32.C (Companion follow-up): Companion's pre-call card now mirrors
- * the main index page — operators pick a registered admin user_id from
- * a dropdown instead of typing a free-form name. Same UX rationale as
- * index.tsx: hub validates user_id against admin and rejects unknowns
- * with 404, so free input was a footgun.
+ * the main index page: operators pick a registered admin owner from a
+ * dropdown instead of typing a free-form name. Hub validates owner_id
+ * against admin and rejects unknowns with 404, so free input was a footgun.
  *
- * Picker state (users / loading / error / selection) is owned by the
- * parent CompanionScene because (a) the picker is also used in
- * /index, sharing the same useUsers + localStorage logic, and (b) the
- * parent already routes ``session.start(userId)`` to the connection
- * hook. PreCallCard stays presentational.
+ * Picker state is owned by the parent CompanionScene because the picker is
+ * also used in /index, sharing the same useOwners + localStorage logic.
+ * PreCallCard stays presentational.
  */
 
 interface PreCallCardProps {
   appTitle: string;
-  users: UserRow[];
-  usersLoading: boolean;
-  usersError: string | null;
-  selectedUserId: string | null;
-  onSelect: (userId: string) => void;
+  owners: OwnerRow[];
+  ownersLoading: boolean;
+  ownersError: string | null;
+  selectedOwnerId: string | null;
+  onSelect: (ownerId: string) => void;
   onRefresh: () => void;
-  onStart: (userId: string) => void;
+  onStart: (ownerId: string) => void;
   error?: string | null;
 }
 
 export function PreCallCard({
   appTitle,
-  users,
-  usersLoading,
-  usersError,
-  selectedUserId,
+  owners,
+  ownersLoading,
+  ownersError,
+  selectedOwnerId,
   onSelect,
   onRefresh,
   onStart,
   error,
 }: PreCallCardProps) {
-  const canStart = Boolean(selectedUserId) && !usersLoading;
+  const canStart = Boolean(selectedOwnerId) && !ownersLoading;
   const handleStart = () => {
-    if (selectedUserId) onStart(selectedUserId);
+    if (selectedOwnerId) onStart(selectedOwnerId);
   };
 
   return (
@@ -81,16 +78,16 @@ export function PreCallCard({
             <label className="mb-1.5 block text-xs uppercase tracking-wider text-white/50">
               Identity
             </label>
-            {/* UserPicker is light-themed by default; wrap in a darker
+            {/* OwnerPicker is light-themed by default; wrap in a darker
                 container so it reads against the glass background. The
                 picker exposes its own inline error / empty / warning
                 states — no need to duplicate them here. */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-slate-800">
-              <UserPicker
-                users={users}
-                loading={usersLoading}
-                error={usersError}
-                selectedUserId={selectedUserId}
+              <OwnerPicker
+                owners={owners}
+                loading={ownersLoading}
+                error={ownersError}
+                selectedOwnerId={selectedOwnerId}
                 onSelect={onSelect}
                 onRefresh={onRefresh}
               />

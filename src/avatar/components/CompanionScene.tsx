@@ -11,7 +11,7 @@ import {
   PLAYBACK_STATE_AGENT_SPEAKING,
   PLAYBACK_STATE_IDLE,
 } from "@/lib/contracts";
-import { useUsers } from "@/hooks/useUsers";
+import { useOwners } from "@/hooks/useOwners";
 import { AmbientBackground } from "./AmbientBackground";
 import { PreCallCard } from "./PreCallCard";
 import { ConnectionOverlay } from "./ConnectionOverlay";
@@ -21,11 +21,7 @@ import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { HudOverlay } from "./HudOverlay";
 import styles from "../styles/companion.module.css";
 
-// Phase 32.C (companion follow-up): share the same persisted-identity
-// key with the main /index page so picking a user in one place hydrates
-// the other. Both pages dispatch to the same hub /api/config user_id
-// validation, so the persistence semantics line up exactly.
-const SELECTED_USER_STORAGE_KEY = "eidolon.client_web.selected_user_id";
+const SELECTED_OWNER_STORAGE_KEY = "eidolon.client_web.selected_owner_id";
 
 // AvatarStage 用 dynamic import 隔离 WebGL / three.js，避免 SSR 报错
 const AvatarStage = dynamic(
@@ -42,46 +38,46 @@ const AvatarStage = dynamic(
 export function CompanionScene() {
   const session = useCompanionSession();
   const {
-    users,
-    loading: usersLoading,
-    error: usersError,
-    refresh: refreshUsers,
-  } = useUsers(session.config.adminApiUrl);
+    owners,
+    loading: ownersLoading,
+    error: ownersError,
+    refresh: refreshOwners,
+  } = useOwners(session.config.adminApiUrl);
 
   // localStorage hydration (mirrors index.tsx). Wrapped in useEffect so
   // Next.js SSR doesn't trip on ``window``.
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(SELECTED_USER_STORAGE_KEY);
-    if (saved) setSelectedUserId(saved);
+    const saved = window.localStorage.getItem(SELECTED_OWNER_STORAGE_KEY);
+    if (saved) setSelectedOwnerId(saved);
   }, []);
   useEffect(() => {
-    if (!selectedUserId) return;
-    if (usersLoading) return;
-    if (users.length === 0) return;
-    const still = users.some((u) => u.user_id === selectedUserId);
+    if (!selectedOwnerId) return;
+    if (ownersLoading) return;
+    if (owners.length === 0) return;
+    const still = owners.some((owner) => owner.owner_id === selectedOwnerId);
     if (!still) {
-      setSelectedUserId(null);
+      setSelectedOwnerId(null);
       if (typeof window !== "undefined") {
-        window.localStorage.removeItem(SELECTED_USER_STORAGE_KEY);
+        window.localStorage.removeItem(SELECTED_OWNER_STORAGE_KEY);
       }
     }
-  }, [users, usersLoading, selectedUserId]);
+  }, [owners, ownersLoading, selectedOwnerId]);
 
-  const handleSelectUser = useCallback((userId: string) => {
-    setSelectedUserId(userId);
+  const handleSelectOwner = useCallback((ownerId: string) => {
+    setSelectedOwnerId(ownerId);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, userId);
+      window.localStorage.setItem(SELECTED_OWNER_STORAGE_KEY, ownerId);
     }
   }, []);
 
   const handleStart = useCallback(
-    (userId: string) => {
-      const picked = users.find((u) => u.user_id === userId);
-      session.start(userId, picked?.display_name);
+    (ownerId: string) => {
+      const picked = owners.find((owner) => owner.owner_id === ownerId);
+      session.start(ownerId, picked?.display_name);
     },
-    [session, users],
+    [session, owners],
   );
 
   return (
@@ -108,12 +104,12 @@ export function CompanionScene() {
           <PreCallCard
             key="pre"
             appTitle={session.config.appTitle}
-            users={users}
-            usersLoading={usersLoading}
-            usersError={usersError}
-            selectedUserId={selectedUserId}
-            onSelect={handleSelectUser}
-            onRefresh={refreshUsers}
+            owners={owners}
+            ownersLoading={ownersLoading}
+            ownersError={ownersError}
+            selectedOwnerId={selectedOwnerId}
+            onSelect={handleSelectOwner}
+            onRefresh={refreshOwners}
             onStart={handleStart}
             error={session.error}
           />
@@ -127,12 +123,12 @@ export function CompanionScene() {
           <PreCallCard
             key="err"
             appTitle={session.config.appTitle}
-            users={users}
-            usersLoading={usersLoading}
-            usersError={usersError}
-            selectedUserId={selectedUserId}
-            onSelect={handleSelectUser}
-            onRefresh={refreshUsers}
+            owners={owners}
+            ownersLoading={ownersLoading}
+            ownersError={ownersError}
+            selectedOwnerId={selectedOwnerId}
+            onSelect={handleSelectOwner}
+            onRefresh={refreshOwners}
             onStart={handleStart}
             error={session.error}
           />

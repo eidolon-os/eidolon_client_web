@@ -5,8 +5,8 @@ import { LiveKitRoom, RoomAudioRenderer, StartAudio } from "@livekit/components-
 import "@livekit/components-styles";
 import { useConfig } from "@/hooks/useConfig";
 import { useConnection } from "@/hooks/useConnection";
-import { useUsers } from "@/hooks/useUsers";
-import { UserPicker } from "@/components/UserPicker";
+import { useOwners } from "@/hooks/useOwners";
+import { OwnerPicker } from "@/components/OwnerPicker";
 import { ConversationRoom } from "@/components/ConversationRoom";
 import { ManualMode } from "@/components/ManualMode";
 import { PushToTalkMode } from "@/components/PushToTalkMode";
@@ -14,7 +14,7 @@ import { motion } from "framer-motion";
 
 type ConnectionMode = "livekit" | "manual" | "ptt";
 
-const SELECTED_USER_STORAGE_KEY = "eidolon.client_web.selected_user_id";
+const SELECTED_OWNER_STORAGE_KEY = "eidolon.client_web.selected_owner_id";
 
 function HomeContent() {
   const { config, validate } = useConfig();
@@ -30,54 +30,53 @@ function HomeContent() {
     disconnect,
   } = useConnection(config.livekitUrl);
 
-  // Phase 32.C: list admin-registered users for the picker. The hook
+  // List admin owners for the picker. The hook
   // self-loads on mount; ``refresh()`` re-fetches (operator may have
-  // just created a new user in admin UI).
+  // just created a new owner in admin UI).
   const {
-    users,
-    loading: usersLoading,
-    error: usersError,
-    refresh: refreshUsers,
-  } = useUsers(config.adminApiUrl);
+    owners,
+    loading: ownersLoading,
+    error: ownersError,
+    refresh: refreshOwners,
+  } = useOwners(config.adminApiUrl);
 
   const [mode, setMode] = useState<ConnectionMode>("livekit");
   const [manualConnected, setManualConnected] = useState(false);
   const [pttConnected, setPttConnected] = useState(false);
   const [pendingRoom, setPendingRoom] = useState<string>("");
-  /** Selected user_id from the picker (Phase 32.A handshake). */
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Restore last-used identity from localStorage so returning visitors
   // skip the picker if their previous selection is still valid. Stale
-  // entries (user deleted in admin) silently fall back to the picker
+  // entries (owner deleted in admin) silently fall back to the picker
   // showing nothing selected.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(SELECTED_USER_STORAGE_KEY);
-    if (saved) setSelectedUserId(saved);
+    const saved = window.localStorage.getItem(SELECTED_OWNER_STORAGE_KEY);
+    if (saved) setSelectedOwnerId(saved);
   }, []);
 
-  // Whenever users finish loading, confirm the restored selection
+  // Whenever owners finish loading, confirm the restored selection
   // still exists. If not, clear it — better than letting the user
   // hit "Start Conversation" and get a 404 from hub.
   useEffect(() => {
-    if (!selectedUserId) return;
-    if (usersLoading) return;
-    if (users.length === 0) return;
-    const still = users.some((u) => u.user_id === selectedUserId);
+    if (!selectedOwnerId) return;
+    if (ownersLoading) return;
+    if (owners.length === 0) return;
+    const still = owners.some((owner) => owner.owner_id === selectedOwnerId);
     if (!still) {
-      setSelectedUserId(null);
+      setSelectedOwnerId(null);
       if (typeof window !== "undefined") {
-        window.localStorage.removeItem(SELECTED_USER_STORAGE_KEY);
+        window.localStorage.removeItem(SELECTED_OWNER_STORAGE_KEY);
       }
     }
-  }, [users, usersLoading, selectedUserId]);
+  }, [owners, ownersLoading, selectedOwnerId]);
 
-  const handleSelectUser = useCallback((userId: string) => {
-    setSelectedUserId(userId);
+  const handleSelectOwner = useCallback((ownerId: string) => {
+    setSelectedOwnerId(ownerId);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, userId);
+      window.localStorage.setItem(SELECTED_OWNER_STORAGE_KEY, ownerId);
     }
   }, []);
 
@@ -87,16 +86,16 @@ function HomeContent() {
       setValidationError(err);
       return;
     }
-    if (!selectedUserId) {
+    if (!selectedOwnerId) {
       setValidationError("Pick an identity before starting the conversation.");
       return;
     }
     setValidationError(null);
     const room = pendingRoom.trim() || `room-${Date.now()}`;
-    const picked = users.find((u) => u.user_id === selectedUserId);
-    const displayName = picked?.display_name ?? selectedUserId;
-    connect(room, selectedUserId, displayName);
-  }, [validate, pendingRoom, selectedUserId, users, connect]);
+    const picked = owners.find((owner) => owner.owner_id === selectedOwnerId);
+    const displayName = picked?.display_name ?? selectedOwnerId;
+    connect(room, selectedOwnerId, displayName);
+  }, [validate, pendingRoom, selectedOwnerId, owners, connect]);
 
   const handleDisconnect = useCallback(() => {
     disconnect();
@@ -105,7 +104,7 @@ function HomeContent() {
   useEffect(() => {
     if (status === "disconnected" || status === "error") {
       setPendingRoom("");
-      // intentionally keep selectedUserId — it's stored across sessions.
+      // intentionally keep selectedOwnerId — it's stored across sessions.
       setManualConnected(false);
       setPttConnected(false);
     }
@@ -204,19 +203,19 @@ function HomeContent() {
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Identity
                     </label>
-                    <UserPicker
-                      users={users}
-                      loading={usersLoading}
-                      error={usersError}
-                      selectedUserId={selectedUserId}
-                      onSelect={handleSelectUser}
-                      onRefresh={refreshUsers}
-                    />
+                      <OwnerPicker
+                        owners={owners}
+                        loading={ownersLoading}
+                        error={ownersError}
+                        selectedOwnerId={selectedOwnerId}
+                        onSelect={handleSelectOwner}
+                        onRefresh={refreshOwners}
+                      />
                   </div>
 
                   <button
                     onClick={handleConnect}
-                    disabled={!selectedUserId || usersLoading}
+                    disabled={!selectedOwnerId || ownersLoading}
                     className="w-full py-2.5 rounded-lg bg-primary-500 text-white font-medium text-sm hover:bg-primary-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary-500"
                   >
                     Start Conversation

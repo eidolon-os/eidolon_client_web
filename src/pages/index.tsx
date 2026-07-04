@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { LiveKitRoom, RoomAudioRenderer, StartAudio } from "@livekit/components-react";
@@ -46,6 +46,10 @@ function HomeContent() {
   const [pendingRoom, setPendingRoom] = useState<string>("");
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  // A "web body" launch (mission-control opened this tab with device params in
+  // the URL) skips the picker and auto-connects as that companion's body.
+  const [bodyLaunch, setBodyLaunch] = useState(false);
+  const autoConnectedRef = useRef(false);
 
   // Restore last-used identity from localStorage so returning visitors
   // skip the picker if their previous selection is still valid. Stale
@@ -101,12 +105,37 @@ function HomeContent() {
     disconnect();
   }, [disconnect]);
 
+  // Web-body launch: mission-control opens this tab with
+  // ?owner_id=&companion_id=&device_id=&room= — auto-connect as that
+  // companion's host-local body, bypassing the owner picker. Runs once.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (autoConnectedRef.current) return;
+    const q = new URLSearchParams(window.location.search);
+    const ownerId = q.get("owner_id");
+    const deviceId = q.get("device_id");
+    if (!ownerId || !deviceId) return;
+    autoConnectedRef.current = true;
+    const companionId = q.get("companion_id");
+    const room = q.get("room") ?? "";
+    const err = validate();
+    if (err) {
+      // Leave the normal card visible so the config error is actionable.
+      setValidationError(err);
+      return;
+    }
+    setBodyLaunch(true);
+    setMode("livekit");
+    connect(room, ownerId, companionId ?? ownerId, { companionId, deviceId });
+  }, [validate, connect]);
+
   useEffect(() => {
     if (status === "disconnected" || status === "error") {
       setPendingRoom("");
       // intentionally keep selectedOwnerId — it's stored across sessions.
       setManualConnected(false);
       setPttConnected(false);
+      setBodyLaunch(false);
     }
   }, [status]);
 
@@ -117,8 +146,8 @@ function HomeContent() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
-        {/* Pre-connection screen */}
-        {status !== "connected" && status !== "connecting" && !manualConnected && !pttConnected && (
+        {/* Pre-connection screen (hidden during a web-body auto-launch) */}
+        {!bodyLaunch && status !== "connected" && status !== "connecting" && !manualConnected && !pttConnected && (
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
             <div className="bg-primary-500 px-6 py-5 relative">
               <h1 className="text-xl font-semibold text-white">

@@ -36,7 +36,8 @@ npm run dev        # 开发模式 + 热更新（默认 http://localhost:3000）
 
 ## 入口
 
-- 路由：`/companion`（`src/pages/companion.tsx`，仅作胶水）
+- 路由：`/`（`src/pages/index.tsx`，仅作胶水）——打开即对话，无表单。身份由
+  `useCompanionBootstrap` 经 admin `/api/bootstrap` 解析（owner→master→web body）。
 - 对外只导出 `<CompanionScene />` 和类型
 
 ## 数据流

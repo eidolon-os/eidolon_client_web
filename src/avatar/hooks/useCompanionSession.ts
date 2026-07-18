@@ -21,23 +21,39 @@ export function useCompanionSession() {
   })();
 
   /**
-   * ``start`` takes an owner_id instead of a free-form display name.
-   * ``displayName`` is optional and used only for room UI text.
+   * Connect as a companion's host-local **web body** (the proper device path):
+   * identity = device_id, room omitted so hub derives a per-session voice room,
+   * and channel resolves the kind=device runtime envelope → full-duplex
+   * StreamingPipeline. This replaces the legacy owner-participant path (which
+   * used a client-invented room and did not resolve a device envelope).
    */
-  const start = useCallback(
-    (ownerId: string, displayName?: string) => {
+  const startBody = useCallback(
+    (opts: {
+      ownerId: string;
+      companionId?: string | null;
+      deviceId?: string | null;
+      displayName?: string;
+    }) => {
       const err = validate();
       if (err) {
         setValidationError(err);
         return;
       }
-      if (!ownerId.trim()) {
-        setValidationError("Pick an identity before starting the conversation.");
+      const ownerId = opts.ownerId?.trim();
+      if (!ownerId) {
+        setValidationError("Missing owner identity — cannot start the conversation.");
         return;
       }
       setValidationError(null);
-      const room = `companion-${Date.now()}`;
-      connection.connect(room, ownerId.trim(), (displayName ?? ownerId).trim());
+      connection.connect({
+        ownerId,
+        companionId: opts.companionId ?? null,
+        deviceId: opts.deviceId ?? null,
+        displayName: (opts.displayName ?? ownerId).trim(),
+        // M1 gate for requesting the video avatar. Runtime-dynamic per session;
+        // the render side shows the avatar track whenever it appears regardless.
+        avatar: process.env.NEXT_PUBLIC_AVATAR === "1",
+      });
     },
     [connection, validate],
   );
@@ -52,10 +68,8 @@ export function useCompanionSession() {
     serverUrl: connection.serverUrl,
     token: connection.token,
     identity: connection.identity,
-    participantName: connection.participantName,
-    roomName: connection.roomName,
     error: connection.error ?? validationError,
-    start,
+    startBody,
     stop,
   };
 }

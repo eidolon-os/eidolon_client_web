@@ -6,7 +6,9 @@ import "@livekit/components-styles";
 import { useCompanionSession } from "../hooks/useCompanionSession";
 import { useAvatarController } from "../hooks/useAvatarController";
 import { useAvatarVideoTrack } from "../hooks/useAvatarVideoTrack";
+import { useCompanionPoster } from "../hooks/useCompanionPoster";
 import { VideoAvatarStage } from "./VideoAvatarStage";
+import { IdleFaceStage } from "./IdleFaceStage";
 import { useBubbleStream } from "../hooks/useBubbleStream";
 import { useClientAudioStatePublisher } from "@/hooks/useClientAudioStatePublisher";
 import {
@@ -49,6 +51,17 @@ export function CompanionScene() {
     error: ownersError,
     refresh: refreshOwners,
   } = useOwners(session.config.adminApiUrl);
+
+  // Idle digital-human face (档3): the companion's configured display face,
+  // rendered locally at idle. Only in avatar mode — audio-only sessions keep the
+  // particle head. Resolves to null (→ particle fallback) when no face is set.
+  const avatarMode = process.env.NEXT_PUBLIC_AVATAR === "1";
+  const posterUrl = useCompanionPoster(
+    session.config.adminApiUrl,
+    bootstrap.identity?.ownerId,
+    bootstrap.identity?.companionId,
+  );
+  const idleFaceUrl = avatarMode ? posterUrl : null;
 
   // Fallback picker (only shown when bootstrap is ambiguous).
   const [pickedOwnerId, setPickedOwnerId] = useState<string | null>(null);
@@ -191,7 +204,7 @@ export function CompanionScene() {
         >
           <RoomAudioRenderer />
           <StartAudio label="Enable Audio" />
-          <InCallInner onDisconnect={session.stop} />
+          <InCallInner onDisconnect={session.stop} idleFaceUrl={idleFaceUrl} />
         </LiveKitRoom>
       )}
     </div>
@@ -201,13 +214,22 @@ export function CompanionScene() {
 /**
  * in-call 阶段的内层；放在 LiveKitRoom 内部，能用 useRoomContext / useDataChannel 等。
  */
-function InCallInner({ onDisconnect }: { onDisconnect: () => void }) {
+function InCallInner({
+  onDisconnect,
+  idleFaceUrl,
+}: {
+  onDisconnect: () => void;
+  idleFaceUrl: string | null;
+}) {
   const controller = useAvatarController();
-  // Runtime face selection: photoreal digital-human video when the avatar worker
-  // publishes a track, else the particle head. The particle head also covers the
-  // brief window before the first video frame and any avatar-service failure
-  // (the worker simply never publishes), so the face is never blank.
+  // Runtime face selection. The avatar worker publishes its video track for the
+  // whole session (a frozen frame when idle), so track presence alone is NOT the
+  // signal — we show the live talking-head only while the agent is *speaking*.
+  // Otherwise we render idle locally: the configured face with micro-motion
+  // (档3) when available, else the particle head. This keeps idle from freezing
+  // and consumes no server video at idle.
   const avatarVideo = useAvatarVideoTrack();
+  const showVideo = controller.state === "speaking" && Boolean(avatarVideo);
   const { bubbles } = useBubbleStream();
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef<number>(Date.now());
@@ -232,7 +254,7 @@ function InCallInner({ onDisconnect }: { onDisconnect: () => void }) {
     <>
       <div className="absolute inset-0">
         <AnimatePresence mode="wait">
-          {avatarVideo ? (
+          {showVideo ? (
             <motion.div
               key="video"
               className="absolute inset-0"
@@ -241,7 +263,18 @@ function InCallInner({ onDisconnect }: { onDisconnect: () => void }) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <VideoAvatarStage trackRef={avatarVideo} />
+              <VideoAvatarStage trackRef={avatarVideo!} />
+            </motion.div>
+          ) : idleFaceUrl ? (
+            <motion.div
+              key="idle-face"
+              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <IdleFaceStage imageUrl={idleFaceUrl} />
             </motion.div>
           ) : (
             <motion.div

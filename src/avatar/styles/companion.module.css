@@ -196,3 +196,54 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); transform: scale(1); }
   50%      { box-shadow: 0 0 0 14px rgba(34, 211, 238, 0.18); transform: scale(1.02); }
 }
+
+/* ============================================================
+   Idle 数字人形象（档3）：配置脸的程序化微动。
+   静息时本地渲染（不消费 avatar 服务的视频轨），说话时交叉淡入实时口型。
+   纯 CSS 微动：呼吸缩放 + 缓慢漂移 + 全息辉光呼吸。真正的眨眼需人脸关键点
+   或离线生成（档1），不在本档范围。
+   ============================================================ */
+.idleFaceStage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.idleFaceImg {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  /* 呼吸(缩放/纵移) + 极缓漂移，错开周期避免机械重复 */
+  animation: idleFaceBreath 5.6s ease-in-out infinite, idleFaceDrift 19s ease-in-out infinite;
+  will-change: transform;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.idleFaceSheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 42%, rgba(34, 211, 238, 0.16) 0%, transparent 58%);
+  mix-blend-mode: screen;
+  animation: idleFaceSheen 7.4s ease-in-out infinite;
+}
+@keyframes idleFaceBreath {
+  0%, 100% { transform: scale(1) translateY(0); filter: brightness(1); }
+  50%      { transform: scale(1.018) translateY(-0.6%); filter: brightness(1.03); }
+}
+@keyframes idleFaceDrift {
+  0%, 100% { translate: 0 0; }
+  33%      { translate: 0.8% -0.5%; }
+  66%      { translate: -0.6% 0.4%; }
+}
+@keyframes idleFaceSheen {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .idleFaceImg { animation: none; }
+  .idleFaceSheen { animation: none; opacity: 0.5; }
+}

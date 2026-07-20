@@ -222,6 +222,13 @@
   -webkit-user-drag: none;
   user-select: none;
 }
+/* 档1：离线生成的 idle 循环片段（视频自带动感，无需 CSS 微动） */
+.idleVideo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
 .idleFaceSheen {
   position: absolute;
   inset: 0;

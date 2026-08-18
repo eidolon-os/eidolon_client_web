@@ -72,3 +72,13 @@ src/
 - 在 `ConversationRoom` 的可视化区域挂载 `<AvatarStage />`
 - `useAvatarController` 已经把 LiveKit voice-assistant state + 音量整合好，直接对接 Live2D / VRM / Three.js 渲染即可
 - 详见 [`src/avatar/README.md`](src/avatar/README.md)
+
+## License
+
+Copyright © 2026 Li Jinsong.
+
+本项目允许依据 [PolyForm Noncommercial License 1.0.0](LICENSE) 进行许可范围内的
+非商业使用。商业使用需要另行取得书面授权，请联系
+[lijinsong@aimanthor.com](mailto:lijinsong@aimanthor.com)。
+
+许可范围、第三方例外和必要声明见 [LICENSING.md](LICENSING.md) 与 [NOTICE](NOTICE)。

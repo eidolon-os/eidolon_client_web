@@ -1,0 +1,196 @@
+{
+  "_why": "Every module-level constant eidolon_sdk/biz/contracts publishes, and what this client decided about it: mirrored to a named constant in src/lib/contracts.ts, or deliberately not mirrored with a reason. A constant in neither column fails tests/wireContractMirror.test.ts, which is the only assertion that can catch a name that was just added. The scope is the whole contract file on purpose: a list of name prefixes is itself a roll-call and can always be made to pass by choosing less. The mobile client's ledger learned that the hard way — its prefix list went short by twenty constants, three of which it had mirrored all along with nothing checking them.",
+  "_history": "src/lib/contracts.ts was written on 2026-06-25 and until 2026-09-07 nothing compared it to the SDK. It was found by a roster scan in the SDK (99c6f12) that requires every repository spelling this vocabulary to be listed; before that, neither the SDK's mirrors nor the mobile client's ledger knew this client existed. It escaped the defect that cost the mobile client twelve days — a session_open published without conversation_id, which the Channel Provider drops rather than refuses — only because it opens no sessions at all. That is luck, not coverage, and SESSION_OPEN_TYPE is recorded below so the exemption is a decision.",
+  "_declared_only": "A mirrored entry marked declared_only is one src/lib/contracts.ts declares and no other file in src/ imports. Nineteen of the twenty-four are in that state: this client's whole live wire surface is the client.audio_state heartbeat it publishes, and it registers no data-channel receiver at all (subtitles arrive through @livekit/components-react's own transcription hooks, which own lk.transcription internally). The rest are mirrored for completeness. They are worth checking anyway — a wrong value sitting in a declaration is a trap for whoever wires the read path up, and the flag is verified in both directions so that starting to consume one forces a look at this file.",
+  "constants": {
+    "WIRE_SCHEMA_VERSION": {
+      "ts": "WIRE_SCHEMA_VERSION",
+      "note": "published as the schema_v member of every client.audio_state body. One of the two names the mobile mirror had never asserted."
+    },
+    "CLIENT_AUDIO_STATE_TOPIC": {
+      "ts": "CLIENT_AUDIO_STATE_TOPIC",
+      "note": "the one topic this client publishes on, in useClientAudioStatePublisher"
+    },
+    "CLIENT_AUDIO_STATE_TYPE": {
+      "ts": "CLIENT_AUDIO_STATE_TYPE",
+      "note": "the body type label, distinct from the routing topic. Setting one to the other is the original drift bug this file was created to end: the server dropped every packet and nothing went red."
+    },
+    "PLAYBACK_STATE_IDLE": {
+      "ts": "PLAYBACK_STATE_IDLE",
+      "note": "resolved by the avatar controller and published as playback_state"
+    },
+    "PLAYBACK_STATE_AGENT_SPEAKING": {
+      "ts": "PLAYBACK_STATE_AGENT_SPEAKING",
+      "note": "as PLAYBACK_STATE_IDLE"
+    },
+    "CONTROL_TOPIC": {
+      "ts": "CONTROL_TOPIC",
+      "declared_only": true,
+      "note": "the device command bus. This client registers no receiver on it, so no control op reaches it today."
+    },
+    "COMPANION_UI_STATE_TOPIC": {
+      "ts": "COMPANION_UI_STATE_TOPIC",
+      "declared_only": true
+    },
+    "SESSION_CONTROL_TOPIC": {
+      "ts": "SESSION_CONTROL_TOPIC",
+      "declared_only": true,
+      "note": "one of the two names the roster scan found declared here with nothing comparing them"
+    },
+    "SESSION_END_TYPE": {
+      "ts": "SESSION_END_TYPE",
+      "declared_only": true,
+      "note": "the teardown notice this client would read if it read the session-control topic. It does not: there is no DataReceived handler in src/, so a session_end is not rendered at all rather than rendered wrongly."
+    },
+    "SESSION_END_IDLE_NORMAL": {
+      "ts": "SESSION_END_IDLE_NORMAL",
+      "declared_only": true
+    },
+    "SESSION_END_USER_LEFT": {
+      "ts": "SESSION_END_USER_LEFT",
+      "declared_only": true
+    },
+    "SESSION_END_ERROR": {
+      "ts": "SESSION_END_ERROR",
+      "declared_only": true
+    },
+    "SESSION_END_PROACTIVE_DONE": {
+      "ts": "SESSION_END_PROACTIVE_DONE",
+      "declared_only": true
+    },
+    "SESSION_END_SUPERSEDED": {
+      "ts": "SESSION_END_SUPERSEDED",
+      "declared_only": true
+    },
+    "INTERACTION_MODE_HALF_DUPLEX": {
+      "ts": "INTERACTION_MODE_HALF_DUPLEX",
+      "declared_only": true
+    },
+    "INTERACTION_MODE_FULL_DUPLEX": {
+      "ts": "INTERACTION_MODE_FULL_DUPLEX",
+      "declared_only": true,
+      "note": "hub stamps interaction_mode into the participant token and this client joins with the token it is given, so it declares no mode of its own. contracts.ts used to claim it declared full_duplex; that comment was corrected when this ledger was written."
+    },
+    "SESSION_INTENT_USER_INITIATED": {
+      "ts": "SESSION_INTENT_USER_INITIATED",
+      "declared_only": true
+    },
+    "SESSION_INTENT_PROACTIVE": {
+      "ts": "SESSION_INTENT_PROACTIVE",
+      "declared_only": true
+    },
+    "INPUT_MODE_AUTO": {
+      "ts": "INPUT_MODE_AUTO",
+      "declared_only": true,
+      "note": "the identifier is unused, but its value does travel: CompanionScene passes inputMode: \"auto\" as a bare literal and the publisher forwards it as input_mode. The InputMode union keeps the literal honest today, which is why this is recorded rather than treated as a leak — but it is the one entry where declared_only understates the exposure, and importing the constant at that call site would close it."
+    },
+    "INPUT_MODE_PTT": {
+      "ts": "INPUT_MODE_PTT",
+      "declared_only": true
+    },
+    "INPUT_MODE_MANUAL": {
+      "ts": "INPUT_MODE_MANUAL",
+      "declared_only": true
+    },
+    "CONTROL_OP_ROOM_JOIN": {
+      "ts": "CONTROL_OP_ROOM_JOIN",
+      "declared_only": true,
+      "note": "declared without a receiver to dispatch it, as are the two ops below; the other six control ops are not declared here at all"
+    },
+    "CONTROL_OP_PLAYBACK_STOP": {
+      "ts": "CONTROL_OP_PLAYBACK_STOP",
+      "declared_only": true
+    },
+    "CONTROL_OP_CONFIG_REFRESH": {
+      "ts": "CONTROL_OP_CONFIG_REFRESH",
+      "declared_only": true
+    },
+    "EVENT_TOPIC": {
+      "not_mirrored": "device to Host telemetry events; this client emits none. Its only publish is the client.audio_state heartbeat."
+    },
+    "LIVEKIT_TRANSCRIPTION_TOPIC": {
+      "not_mirrored": "subtitles reach this client through @livekit/components-react's useTranscriptions and useVoiceAssistant, which own this topic name inside the LiveKit SDK. Verified: zero occurrences of the value in src/, so the client genuinely never spells it."
+    },
+    "LIVEKIT_AGENT_SESSION_TOPIC": {
+      "not_mirrored": "as LIVEKIT_TRANSCRIPTION_TOPIC — owned by the LiveKit components layer this client consumes, never spelled here"
+    },
+    "INTERACTION_MODE_PTT": {
+      "not_mirrored": "push to talk is not a mode a browser tab offers; this body runs open-mic. The value 'ptt' is three characters, so this is reasoning rather than a measurement."
+    },
+    "VALID_INTERACTION_MODES": {
+      "not_mirrored": "a computed frozenset the Host validates against; a body is stamped with one mode rather than choosing from the set"
+    },
+    "SESSION_INTENT_FIELD": {
+      "not_mirrored": "a participant-metadata member hub stamps into the token; this client reads no metadata, it joins with the token hub minted for it"
+    },
+    "SESSION_FLOW_ID_FIELD": {
+      "not_mirrored": "correlates a flow across Host services; never carried by a client"
+    },
+    "SESSION_INTENT_PRESENCE": {
+      "not_mirrored": "a presence-initiated session is opened by a Body that can sense a room; a browser tab starts a session from a click"
+    },
+    "VALID_SESSION_INTENTS": {
+      "not_mirrored": "a computed set; this client neither declares an intent nor validates one it receives"
+    },
+    "VALID_SESSION_END_REASONS": {
+      "not_mirrored": "a computed set over the five end reasons, each of which is mirrored individually above; the set itself is not a value a client carries"
+    },
+    "SESSION_OPEN_TYPE": {
+      "not_mirrored": "this client never opens a session on the session-control topic: hub mints the room token and the client joins with it. This is the whole reason the conversation_id defect that cost the mobile client twelve days could not reach it, and it is recorded so that the exemption is a decision rather than an oversight. Verified: zero occurrences of the value in src/."
+    },
+    "SESSION_CLOSE_TYPE": {
+      "not_mirrored": "as SESSION_OPEN_TYPE; teardown here is leaving the LiveKit room, not publishing a request"
+    },
+    "SESSION_STARTED_TYPE": {
+      "not_mirrored": "the Host's acknowledgement of a request this client does not make"
+    },
+    "SESSION_CONVERSATION_ID_FIELD": {
+      "not_mirrored": "the member that makes a session request a request, and the name whose absence the Provider drops without a log line. This client publishes no session request for it to be absent from. It is listed explicitly because it is the constant this whole apparatus exists for: if this client ever gains a session_open, this entry is the one that has to change."
+    },
+    "SESSION_CONVERSATION_ID_MAX_LENGTH": {
+      "not_mirrored": "a bound the Provider enforces on what it receives; this client sends no conversation id to bound, and a client that enforced it would refuse an id the Provider would have accepted"
+    },
+    "VALID_SESSION_REQUEST_TYPES": {
+      "not_mirrored": "a computed set over the two request types this client does not send"
+    },
+    "INPUT_MODE_UNKNOWN": {
+      "not_mirrored": "this client publishes a definite input mode on every heartbeat and never the unknown third state; 'unknown' is far too common a word to search for, so this is reasoning rather than a measurement"
+    },
+    "VALID_INPUT_MODES": {
+      "not_mirrored": "a computed set the server validates incoming modes against; a client sends one mode, not the set"
+    },
+    "PLAYBACK_STATE_UNKNOWN": {
+      "not_mirrored": "the avatar controller resolves playback to speaking or idle before publishing, so the unknown state is never sent; 'unknown' is far too common a word to search for"
+    },
+    "VALID_PLAYBACK_STATES": {
+      "not_mirrored": "a computed set the server validates against; this client sends one state at a time"
+    },
+    "CLIENT_AUDIO_STATE_KNOWN_KEYS": {
+      "not_mirrored": "a computed frozenset the server filters incoming bodies with, so not a value a client sends. The coupling is real in the other direction — every key the publisher puts in its payload must be a member, or it is silently discarded — and that is asserted directly against this set in tests/wireContractMirror.test.ts rather than mirrored as a constant."
+    },
+    "CONTROL_OP_PTT_TURN_STATUS": {
+      "not_mirrored": "turn status for a push-to-talk mode this client does not offer"
+    },
+    "CONTROL_OP_DEVICE_IDENTIFY": {
+      "not_mirrored": "a Host to device op this client does not implement; it registers no receiver on the control topic at all"
+    },
+    "CONTROL_OP_DEVICE_ROLL_CALL": {
+      "not_mirrored": "as CONTROL_OP_DEVICE_IDENTIFY"
+    },
+    "CONTROL_OP_GUARD_VISION_BENCHMARK": {
+      "not_mirrored": "guard vision runs on boards with a camera; this client publishes no video track"
+    },
+    "CONTROL_OP_GUARD_RUNTIME_SYNC": {
+      "not_mirrored": "guard runtime is not part of a browser body"
+    },
+    "CONTROL_OP_GUARD_OWNER_FACE_PROFILE_SYNC": {
+      "not_mirrored": "guard face profiles belong to the vision path this client does not have"
+    },
+    "VALID_CONTROL_OPS": {
+      "not_mirrored": "a computed set the server validates incoming ops against; a client would send one op"
+    },
+    "CONTROL_OP_ALIASES": {
+      "not_mirrored": "a computed alias table over the ops above; not a value a client sends"
+    }
+  }
+}

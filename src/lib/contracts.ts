@@ -1,10 +1,18 @@
 /**
  * Device⇄server wire contract — TypeScript view (web client).
  *
- * SOURCE OF RECORD is the Python module `eidolon_sdk/eidolon_sdk/contracts`.
- * This file is the exported TS mirror (plan Track A2): keep the values byte-for-
- * byte identical. `eidolon_sdk/tests/contracts/test_contracts.py` pins the
- * Python side; when you change a value there, change it here too.
+ * SOURCE OF RECORD is the Python module `eidolon_sdk.biz.contracts`
+ * (`eidolon_sdk/eidolon_sdk/biz/contracts/__init__.py`). This file is the TS
+ * mirror: the values are byte-for-byte identical, and that is now checked
+ * rather than requested. `tests/wireContractMirror.test.ts` compares every
+ * constant below against the contract and holds `wire_contract_mirror.json` to
+ * the whole of it, so a name added to the contract fails here until somebody
+ * either mirrors it or records why this client does not carry it.
+ *
+ * Adding a constant here means adding its decision to that ledger. Most of what
+ * this file declares is not read anywhere yet — see `_declared_only` in the
+ * ledger — so a wrong value would sit inert rather than break something, which
+ * is exactly why it is worth checking.
  *
  * Why this exists: the topic names / enum strings / `type` labels used to be
  * hand-copied inline across the web client. A single typo degraded silently
@@ -42,8 +50,10 @@ export const SESSION_END_ERROR = "error";
 export const SESSION_END_PROACTIVE_DONE = "proactive_done";
 export const SESSION_END_SUPERSEDED = "superseded";
 
-// Session metadata enums (hub stamps these into the token; web declares
-// full_duplex). Mirrored for completeness.
+// Session metadata enums. Hub stamps these into the participant token and this
+// client joins with the token it is given — it declares no interaction mode of
+// its own, despite what an earlier version of this comment said. Mirrored for
+// completeness; nothing here reads them.
 export const INTERACTION_MODE_HALF_DUPLEX = "half_duplex";
 export const INTERACTION_MODE_FULL_DUPLEX = "full_duplex";
 export const SESSION_INTENT_USER_INITIATED = "user_initiated";

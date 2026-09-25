@@ -191,6 +191,15 @@
     },
     "CONTROL_OP_ALIASES": {
       "not_mirrored": "a computed alias table over the ops above; not a value a client sends"
+    },
+    "CHANNEL_PROVIDER_IDENTITY_PREFIX": {
+      "not_mirrored": "This client does not consume Provider controls or authenticate Provider participants."
+    },
+    "SESSION_REJECTED_TYPE": {
+      "not_mirrored": "This client does not consume Provider session rejection controls."
+    },
+    "SESSION_REJECTION_CONFLICT": {
+      "not_mirrored": "This client does not consume Provider session rejection controls."
     }
   }
 }

@@ -203,6 +203,21 @@
     },
     "SESSION_CONTROL_REQUEST_ID_FIELD": {
       "not_mirrored": "Only prepared device room.join emits this correlation field; this client does not implement prepared device admission."
+    },
+    "VOICE_APPLICATION_PROPERTY": {
+      "not_mirrored": "a manifest property a Body declares to be served something other than the Companion. This client declares no manifest at all — hub mints its room token and it joins with it — so it has nowhere to put one. Verified: zero occurrences of the value in src/."
+    },
+    "SESSION_APPLICATION_COMPANION": {
+      "not_mirrored": "what a Body that declares no voice.application is served, and so what this client is served without saying anything. Declaring the default would be a second statement of an absence. Verified: zero occurrences of the value in src/."
+    },
+    "SESSION_APPLICATION_HOME_COMMAND": {
+      "not_mirrored": "served only to a smart-home panel with a microphone; a browser tab is not a panel and has no smart-home surface. Verified: zero occurrences of the value in src/."
+    },
+    "SESSION_APPLICATION_FIELD": {
+      "not_mirrored": "written by the Channel Provider into the agent's dispatch metadata; it travels Provider to agent and never reaches a participant, and this client reads no metadata in any case"
+    },
+    "VALID_SESSION_APPLICATIONS": {
+      "not_mirrored": "a computed set the Provider validates a declared application against; this client declares none"
     }
   }
 }

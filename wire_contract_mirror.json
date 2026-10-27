@@ -218,9 +218,6 @@
     },
     "VALID_SESSION_APPLICATIONS": {
       "not_mirrored": "a computed set the Provider validates a declared application against; this client declares none"
-    },
-    "SESSION_END_VOICE_POLICY_CONFIRMATION_REQUIRED": {
-      "not_mirrored": "Web ends the session; personal voice approval is managed in Mobile."
     }
   }
 }

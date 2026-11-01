@@ -207,6 +207,9 @@
     "SESSION_CONTROL_REQUEST_ID_FIELD": {
       "not_mirrored": "Only prepared device room.join emits this correlation field; this client does not implement prepared device admission."
     },
+    "SESSION_ACTION_TO_SEND_MS_FIELD": {
+      "not_mirrored": "optional start timing (press to send); this client has no product deployment whose start is measured, so it sends none and the Provider times from receipt"
+    },
     "VOICE_APPLICATION_PROPERTY": {
       "not_mirrored": "a manifest property a Body declares to be served something other than the Companion. This client declares no manifest at all — hub mints its room token and it joins with it — so it has nowhere to put one. Verified: zero occurrences of the value in src/."
     },

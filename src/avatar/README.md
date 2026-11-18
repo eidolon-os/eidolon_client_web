@@ -1,5 +1,7 @@
 # Avatar Module — 虚拟人陪伴模块
 
+> 状态（2026-11-18）：Web 客户端已停用，连不上现在的 Host（Admin `/api/bootstrap`、Hub `/api/config` 都已删除，见仓库根 `README.md`）。下文是停用前的实现说明；只有 `/particle-demo` 不依赖后端。原「后续扩展点」一节判为不做并已删除，理由见根 README。
+
 独立的虚拟人陪伴体验，自包含、可单独迭代。
 当前形象为**全息粒子人像**（原生 three.js），随 listening/thinking/speaking 状态与音频实时变化。
 
@@ -21,10 +23,10 @@ npm run dev        # 开发模式 + 热更新（默认 http://localhost:3000）
 | 路由 | 用途 | 是否需要后端 |
 |---|---|---|
 | **`/particle-demo`** | 纯视觉/动画测试：自动循环 idle→listening→thinking→speaking，正弦波模拟音量，底部按钮可手动切状态 | ❌ 不需要 |
-| **`/companion`** | 真实交互：状态来自 AI agent（`useVoiceAssistant`），speaking 亮度由 agent 真实语音驱动 | ✅ 需要 LiveKit token 后端 + agent（`.env.local` 的 `NEXT_PUBLIC_LIVEKIT_*`） |
+| **`/`** | 真实交互：状态来自 AI agent（`useVoiceAssistant`），speaking 亮度由 agent 真实语音驱动 | ✅ 需要 token 与 bootstrap 后端（现已不存在） |
 
 - 先用 `/particle-demo` 调外观/看动画（无需 agent）。
-- `/companion` 看真实状态/口型联动前，先把 agent 服务跑起来。
+- `/` 的真实对话目前无法使用（后端接口已删除）。
 - `/particle-demo` 调试参数：`?model=/avatar/x.glb`（改走 3D 路径）、`?count=110000`（覆盖点数）。
 - 生产部署：`npm run build && npm start`。
 
@@ -105,13 +107,3 @@ useConnection ──→ token
 - **thinking**：自下而上循环的扫描亮线（全息扫描）
 - **speaking**：随 `getVolume()` 整体亮度脉动 + 嘴部区域高亮
 清晰度调节：点数（`AvatarStage` 内图片路径默认桌面 110k）、片元高对比（`headShaders.ts` 的 `lumC`）、辉光强度（`ParticleHead.ts` 的 `UnrealBloomPass` 参数）。
-
-## 后续扩展点
-
-- **精细 viseme**：在 `useAudioAnalyser` 里加 FFT 共振峰分析，输出 A/E/I/O/U 权重，
-  AvatarStage 改用 `viseme_aa / viseme_E / viseme_I / viseme_O / viseme_U` morph target
-- **服务端 viseme 推送**：扩展 LiveKit data channel `topic="viseme"`，TTS 同步发送
-  音素时间轴；AvatarStage 监听并 schedule 到 audio currentTime
-- **手势 from LLM**：让 LLM 输出 emotion/gesture tag（`{"emotion":"happy","gesture":"wave"}`），
-  通过 data channel 推送，state machine 接住
-- **VRM 路线**：用 `@pixiv/three-vrm` 替换 AvatarStage 内部，接口不变
